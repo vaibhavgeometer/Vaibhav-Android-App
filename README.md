@@ -1,1 +1,125 @@
-# Vaibhav-Android-App
+# IIT JAM & CUET-PG Academic Android App 📐
+
+A high-performance, buttery-smooth Android application for **IIT JAM Mathematics (MA)** and **CUET-PG Mathematics** aspirants.
+
+Taking design and performance inspiration from **[lichess-org/mobile](https://github.com/lichess-org/mobile)**, this application is crafted with Flutter for a 60/120 FPS native experience, sleek dark-mode aesthetics, tactile haptic feedback, and an offline-first architecture with zero login barriers.
+
+---
+
+## 🚀 Key Features Ported from the Academic Portal
+
+### 🏛️ 1. Complete 22-Year Mock Test Series (2005–2026)
+* **58 Mock Test Suites** available offline:
+  * **12 CBT Era Tests (2015–2026):** Full 60-question authentic examination pattern (MCQ, MSQ, and NAT).
+  * **10 Classic Era Tests (2005–2014):** Subjective & objective transition archives.
+  * **27 Subtopic Test Suites:** Focused topic drills across the 3 historical eras.
+  * **9 Comprehensive Archive Topic Tests.**
+* **Two Test Modes:**
+  * **⚡ Official CBT Simulator:** Full timed exam with live countdown, question palette, question status tracking, and auto-submit.
+  * **🎯 Practice Mode:** Untimed, self-paced exploration with instant review.
+
+### ⚡ 2. Authentic CBT Exam Simulator
+* **Interactive Option Selectors:**
+  * **MCQ:** Single-choice radio selector with immediate selection feedback.
+  * **MSQ:** Multi-select checkboxes with zero partial-marking penalty rules.
+  * **NAT (Numerical Answer Type):** Numerical input pad and direct numeric input supporting exact values and ranges (e.g. `1.9 to 2.1`).
+* **Official Question Palette:** Real-time color-coded question grid matching official examination conventions:
+  * 🟢 **Answered**
+  * 🔴 **Not Answered**
+  * 🟣 **Marked for Review**
+  * 🟣 (Badge) **Answered & Marked for Review**
+  * ⚪ **Not Visited**
+* **Instant Score Report & Review:**
+  * Accurate official scoring rules (+1 / -0.33, +2 / -0.66, MSQ no negative, NAT no negative).
+  * Overall score, percentage, accuracy rate, and time taken.
+  * Question-by-question review with official screenshots, student responses, official master keys, and explanations.
+
+### 🖩 3. Built-In Virtual Scientific Calculator
+* Official IIT JAM examination style scientific calculator modal sheet.
+* Trigonometric (`sin`, `cos`, `tan`), Inverse (`asin`, `acos`, `atan`), and Hyperbolic (`sinh`, `cosh`, `tanh`) functions.
+* Radian and Degree angle modes.
+* Logarithmic (`ln`, `log`), Exponential (`e^x`, `10^x`), and Power (`x^y`, `x^2`, `x^3`, `sqrt`, `cbrt`) functions.
+* Memory registers (`MC`, `MR`, `MS`, `M+`, `M-`) and history expressions.
+
+### 🎯 4. PYQ Tracker & Question Bank (885 Questions)
+* Search and track all **885 official examination questions** across 22 years (2005–2026).
+* **Instant Search:** Find questions instantly by Year and Question number (e.g. `2013 Q17`, `2005 7`), by Mathematical keyword (e.g. `differential equations`, `matrices`), or by unique question ID.
+* **Filter Chips:** Filter by Solved, Unsolved, Out of Syllabus (87 questions), Core Topics, and Difficulty levels.
+* **5-Level Difficulty Taxonomy:** Very Easy, Easy, Medium, Hard, and Hardest with exam-pattern fallback inference.
+* **Persistent Progress:** All progress and notes are stored locally on the device using `SharedPreferences`.
+
+### 📊 5. Study Statistics & Analytics
+* **🔥 Active Streak Counter:** Tracks day-by-day solving streaks.
+* **📈 Velocity Tracking:** Solved today, solved this week, and daily solving pace.
+* **⏳ Finish Forecast:** Dynamically predicts syllabus completion date based on your solving velocity.
+* **🎯 Topic Mastery Progress Bars:** Real Analysis (286 Qs), Multivariable Calculus & Differential Equations (257 Qs), and Linear Algebra & Algebra (255 Qs).
+* **📊 22-Year Project Statistics Report:** Access the comprehensive empirical study report PDF directly inside the app.
+
+### 📚 6. Study Hub & CUET-PG Archive
+* **⏳ IIT JAM 2027 Live Countdown:** Real-time ticking countdown timer targeting Sunday, February 14, 2027 (09:30 AM IST).
+* **🎓 CUET-PG Mathematics Papers:** Master question papers for 2024, 2025, and 2026.
+* **📜 Official Syllabus:** Verified syllabus PDF for IIT JAM Mathematics.
+* **📑 14 Formula Cheat Sheets:**
+  1. Linear Algebra Master Cheat Sheet
+  2. Vector Spaces & Linear Transformations
+  3. Sequences of Real Numbers
+  4. Series of Real Numbers
+  5. Series Convergence Tests
+  6. Continuity & Differentiability
+  7. Riemann Integration
+  8. Functions of Several Variables
+  9. Multivariable & Power Series Supplemental
+  10. Differential Equations Master Sheet
+  11. Integral Calculus Sheet
+  12. Group Theory Master Sheet
+  13. Group Theory Summary
+  14. Basic Algebra Cheat Sheet
+* **🛠️ Custom Test Generator:** Tailor your own practice test by picking specific topics, question counts (15, 30, 45, 60), and custom durations.
+
+---
+
+## 🛠️ Technology Stack & Architecture
+
+```
+lib/
+├── core/
+│   ├── models/           # Data models (Question, MockTest, PyqItem, TestResult)
+│   ├── services/         # DataService, TrackerService, CalculatorEngine, PdfHelper
+│   └── theme/            # Lichess-inspired dark theme, typography & palette
+├── presentation/
+│   ├── screens/
+│   │   ├── main_shell.dart         # Bottom Navigation Shell
+│   │   ├── tests/                  # Mock Tests Catalog
+│   │   ├── tracker/                # 885 PYQ Question Bank & Tracker
+│   │   ├── simulator/              # CBT Simulator, Calculator & Results
+│   │   ├── stats/                  # Velocity & Topic Analytics
+│   │   └── study_hub/              # Cheat Sheets, CUET-PG & Countdown
+│   └── widgets/                    # Interactive zoomable screenshot viewer, difficulty chips
+└── main.dart
+```
+
+* **Framework:** Flutter 3.29.2 (Dart 3.7.2)
+* **Fonts:** Outfit (headings) & Inter (body) via `google_fonts`
+* **Local Persistence:** `shared_preferences`
+* **Gestures & Zoom:** Native `InteractiveViewer` with pinch-to-zoom for examination screenshots
+* **Tactile Feedback:** `HapticFeedback` on tab switches and option selections
+
+---
+
+## 📦 Building the App
+
+```bash
+# Get dependencies
+flutter pub get
+
+# Run on connected Android device or emulator
+flutter run
+
+# Build release APK
+flutter build apk --release
+```
+
+---
+
+## 📄 License
+MIT License. All examination papers, questions, and master keys belong to their respective conducting authorities (IITs and NTA).
