@@ -2,7 +2,34 @@
 
 A high-performance, buttery-smooth Android application for **IIT JAM Mathematics (MA)** and **CUET-PG Mathematics** aspirants.
 
+<p align="center">
+  <a href="https://github.com/vaibhavgeometer/Vaibhav-Android-App/releases/latest">
+    <img src="https://img.shields.io/badge/Download-Latest%20Android%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white" alt="Download Latest Android APK" height="42">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/vaibhavgeometer/Vaibhav-Android-App/releases">
+    <img src="https://img.shields.io/badge/Releases-All%20Versions-blue?style=for-the-badge&logo=github" alt="All Releases" height="42">
+  </a>
+</p>
+
 Taking design and performance inspiration from **[lichess-org/mobile](https://github.com/lichess-org/mobile)**, this application is crafted with Flutter for a 60/120 FPS native experience, sleek dark-mode aesthetics, tactile haptic feedback, and an offline-first architecture with zero login barriers.
+
+---
+
+## 📥 Download & Installation
+
+You can download and install the latest APK directly onto any Android device:
+
+| File | Description | Download Link |
+| :--- | :--- | :--- |
+| **`app-release.apk`** | Production build (optimized, signed) | [**⬇️ Download Latest APK**](https://github.com/vaibhavgeometer/Vaibhav-Android-App/releases/latest) |
+| **All Releases** | Previous builds & changelogs | [**📦 View Releases Archive**](https://github.com/vaibhavgeometer/Vaibhav-Android-App/releases) |
+
+### 📱 How to Install:
+1. Tap the **Download Latest Android APK** button above to download the `.apk` file to your device.
+2. Open the downloaded file from your Downloads folder or notification tray.
+3. If prompted by Android, enable **"Allow from this source"** (or *Install unknown apps* permission).
+4. Tap **Install** and enjoy full offline access!
 
 ---
 
