@@ -109,7 +109,11 @@ class CloudSyncService extends ChangeNotifier {
         return false;
       }
     } catch (e) {
-      _statusMessage = 'Network error during sync';
+      if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        _statusMessage = 'Offline: sync will resume when internet is connected.';
+      } else {
+        _statusMessage = 'Sync error: $e';
+      }
       _isSyncing = false;
       notifyListeners();
       return false;
@@ -199,7 +203,7 @@ class CloudSyncService extends ChangeNotifier {
         'lastUpdated': _lastSyncTime,
       };
       await prefs.setString('jam_pyq_user_tracker_v1', json.encode(trackerData));
-      await tracker.init(); // reload tracker state
+      await tracker.reload(); // reload tracker in-memory map & notify listeners
 
       // Also push merged data back up so cloud has both
       await syncNow();
@@ -209,7 +213,11 @@ class CloudSyncService extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _statusMessage = 'Failed to link device: $e';
+      if (e.toString().contains('SocketException') || e.toString().contains('Failed host lookup')) {
+        _statusMessage = 'No internet connection. Please check your network and try again.';
+      } else {
+        _statusMessage = 'Failed to link device: $e';
+      }
       _isSyncing = false;
       notifyListeners();
       return false;

@@ -18,8 +18,9 @@ class _CloudSyncModalState extends State<CloudSyncModal> {
   @override
   void initState() {
     super.initState();
+    _activeTab = _sync.isLinked ? 0 : 1;
     _sync.addListener(_onSyncUpdate);
-    if (!_sync.isLinked) {
+    if (_sync.isLinked) {
       _sync.syncNow();
     }
   }
@@ -189,7 +190,8 @@ class _CloudSyncModalState extends State<CloudSyncModal> {
   }
 
   Widget _buildMyCodeView() {
-    final code = _sync.syncCode ?? 'Generating...';
+    final isLinked = _sync.isLinked;
+    final code = isLinked ? _sync.syncCode! : 'No Code Active';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,27 +207,45 @@ class _CloudSyncModalState extends State<CloudSyncModal> {
           ),
           child: Column(
             children: [
-              const Text(
-                'YOUR 6-DIGIT SYNC CODE',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted),
+              Text(
+                isLinked ? 'YOUR 6-DIGIT SYNC CODE' : 'CLOUD SYNC CODE',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted),
               ),
               const SizedBox(height: 8),
               SelectableText(
                 code,
-                style: const TextStyle(
-                  fontSize: 28,
+                style: TextStyle(
+                  fontSize: isLinked ? 28 : 20,
                   fontWeight: FontWeight.w900,
-                  color: AppColors.primaryGold,
-                  letterSpacing: 2,
+                  color: isLinked ? AppColors.primaryGold : AppColors.textSecondary,
+                  letterSpacing: isLinked ? 2 : 1,
                   fontFamily: 'monospace',
                 ),
               ),
               const SizedBox(height: 10),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.copy, size: 15),
-                label: const Text('Copy Code', style: TextStyle(fontSize: 12)),
-                onPressed: _copySyncCode,
-              ),
+              if (isLinked)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.copy, size: 15),
+                      label: const Text('Copy Code', style: TextStyle(fontSize: 12)),
+                      onPressed: _copySyncCode,
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      icon: const Icon(Icons.link_off, size: 15, color: AppColors.accentRed),
+                      label: const Text('Unlink', style: TextStyle(fontSize: 12, color: AppColors.accentRed)),
+                      onPressed: () => _sync.unlink(),
+                    ),
+                  ],
+                )
+              else
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Generate Sync Code'),
+                  onPressed: () => _sync.syncNow(),
+                ),
             ],
           ),
         ),

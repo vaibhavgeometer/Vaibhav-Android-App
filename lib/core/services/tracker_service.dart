@@ -51,6 +51,36 @@ class TrackerService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> reload() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final rawJson = prefs.getString(_storageKey);
+    if (rawJson != null) {
+      try {
+        final decoded = json.decode(rawJson) as Map<String, dynamic>;
+        final questions = decoded['questions'] as Map<String, dynamic>? ?? {};
+        _progressMap = questions.map((k, v) => MapEntry(
+              k,
+              QuestionProgress.fromJson(v as Map<String, dynamic>),
+            ));
+      } catch (e) {
+        debugPrint('Error loading progress map: $e');
+      }
+    }
+
+    final rawDaily = prefs.getString(_dailyLogsKey);
+    if (rawDaily != null) {
+      try {
+        final decoded = json.decode(rawDaily) as Map<String, dynamic>;
+        _dailyLogs = decoded.map((k, v) => MapEntry(k, v as int? ?? 0));
+      } catch (e) {
+        debugPrint('Error loading daily logs: $e');
+      }
+    }
+
+    notifyListeners();
+  }
+
   QuestionProgress getProgress(String questionId, {String defaultDiff = 'medium'}) {
     return _progressMap[questionId] ??
         QuestionProgress(difficulty: defaultDiff);
