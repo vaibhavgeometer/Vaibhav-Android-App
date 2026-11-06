@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/models/pyq_item.dart';
+import '../../../core/services/cloud_sync_service.dart';
 import '../../../core/services/data_service.dart';
 import '../../../core/services/tracker_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/difficulty_chip.dart';
 import '../../widgets/question_image_viewer.dart';
+import 'cloud_sync_modal.dart';
 
 class TrackerScreen extends StatefulWidget {
   const TrackerScreen({super.key});
@@ -16,6 +18,7 @@ class TrackerScreen extends StatefulWidget {
 
 class _TrackerScreenState extends State<TrackerScreen> {
   final TrackerService _trackerService = TrackerService.instance;
+  final CloudSyncService _cloudSync = CloudSyncService.instance;
   List<PyqItem>? _allQuestions;
   bool _isLoading = true;
 
@@ -28,13 +31,24 @@ class _TrackerScreenState extends State<TrackerScreen> {
   void initState() {
     super.initState();
     _trackerService.addListener(_onTrackerUpdate);
+    _cloudSync.addListener(_onTrackerUpdate);
     _loadQuestions();
   }
 
   @override
   void dispose() {
     _trackerService.removeListener(_onTrackerUpdate);
+    _cloudSync.removeListener(_onTrackerUpdate);
     super.dispose();
+  }
+
+  void _openCloudSyncModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const CloudSyncModal(),
+    );
   }
 
   void _onTrackerUpdate() {
@@ -218,10 +232,20 @@ class _TrackerScreenState extends State<TrackerScreen> {
       appBar: AppBar(
         title: const Text('PYQ Tracker (885 Questions)'),
         actions: [
+          IconButton(
+            icon: Icon(
+              _cloudSync.isLinked ? Icons.cloud_done_outlined : Icons.cloud_sync_outlined,
+              color: _cloudSync.isLinked ? AppColors.accentGreen : AppColors.accentCyan,
+            ),
+            tooltip: _cloudSync.isLinked ? 'Cloud Sync (${_cloudSync.syncCode})' : 'Instant Cloud Sync',
+            onPressed: _openCloudSyncModal,
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: (val) {
-              if (val == 'oos_toggle') {
+              if (val == 'cloud_sync') {
+                _openCloudSyncModal();
+              } else if (val == 'oos_toggle') {
                 _trackerService.markAllOosAsUnnecessary(questions, true);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Marked 87 Out of Syllabus questions as unnecessary')),
@@ -230,8 +254,18 @@ class _TrackerScreenState extends State<TrackerScreen> {
                 _confirmReset();
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'cloud_sync',
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_sync, size: 18, color: AppColors.accentCyan),
+                    SizedBox(width: 8),
+                    Text('Cloud Sync', style: TextStyle(fontSize: 13)),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
                 value: 'oos_toggle',
                 child: Row(
                   children: [
@@ -241,7 +275,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
                   ],
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'reset',
                 child: Row(
                   children: [
@@ -306,7 +340,14 @@ class _TrackerScreenState extends State<TrackerScreen> {
                   children: [
                     _buildMiniBadge('🔥 Streak: ${_trackerService.activeStreakDays}d', AppColors.primaryGold),
                     _buildMiniBadge('📅 Today: +${_trackerService.solvedTodayCount}', AppColors.accentGreen),
-                    _buildMiniBadge('🚫 OOS: ${_trackerService.unnecessaryCount}', AppColors.accentPurple),
+                    InkWell(
+                      onTap: _openCloudSyncModal,
+                      borderRadius: BorderRadius.circular(6),
+                      child: _buildMiniBadge(
+                        _cloudSync.isLinked ? '☁️ ${_cloudSync.syncCode}' : '☁️ Cloud Sync',
+                        _cloudSync.isLinked ? AppColors.accentGreen : AppColors.accentCyan,
+                      ),
+                    ),
                   ],
                 ),
               ],

@@ -40,6 +40,7 @@ dependencies:
   url_launcher: ^6.3.2
   open_filex: ^5.0.0
   path_provider: ^2.1.5
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

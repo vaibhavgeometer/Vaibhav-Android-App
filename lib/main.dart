@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'core/services/cloud_sync_service.dart';
 import 'core/services/tracker_service.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/screens/main_shell.dart';
@@ -17,8 +18,9 @@ void main() async {
     ),
   );
 
-  // Initialize persistent tracker service
+  // Initialize persistent tracker & cloud sync services
   await TrackerService.instance.init();
+  await CloudSyncService.instance.init();
 
   runApp(const VaibhavAcademicApp());
 }

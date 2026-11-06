@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/pyq_item.dart';
+import 'cloud_sync_service.dart';
 
 class TrackerService extends ChangeNotifier {
   static final TrackerService instance = TrackerService._();
@@ -125,6 +126,11 @@ class TrackerService extends ChangeNotifier {
     };
     await prefs.setString(_storageKey, json.encode(data));
     await prefs.setString(_dailyLogsKey, json.encode(_dailyLogs));
+
+    final sync = CloudSyncService.instance;
+    if (sync.isLinked && sync.autoSyncEnabled) {
+      sync.syncNow();
+    }
   }
 
   // --- Statistics Helpers ---
