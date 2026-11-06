@@ -65,7 +65,60 @@ class CloudSyncService extends ChangeNotifier {
     return code.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
   }
 
-  /// Push current local progress to cloud
+  /// Helper to merge cloud questions into local tracker without losing progress
+  Future<void> _mergeAndApplyCloudData(
+    Map<String, dynamic> cloudQuestions,
+    TrackerService tracker,
+  ) async {
+    final localProgress = tracker.progressMap;
+    final mergedQuestions = <String, QuestionProgress>{...localProgress};
+
+    for (final entry in cloudQuestions.entries) {
+      final qId = entry.key;
+      final cQ = entry.value as Map<String, dynamic>;
+
+      final lQ = mergedQuestions[qId];
+      final bool cSolved = cQ['solved'] == true;
+      final String cDiff = cQ['difficulty']?.toString() ?? 'medium';
+      final bool cUnnecessary = cQ['unnecessary'] == true;
+      final String? cSolvedAt = cQ['solvedAt']?.toString() ?? cQ['solvedDate']?.toString();
+
+      if (lQ == null) {
+        mergedQuestions[qId] = QuestionProgress(
+          solved: cSolved,
+          difficulty: cDiff,
+          unnecessary: cUnnecessary,
+          solvedDate: cSolvedAt,
+        );
+      } else {
+        final bool isSolved = lQ.solved || cSolved;
+        // Keep timestamp: if both solved, prefer whichever has a non-null timestamp
+        final String? finalDate = (lQ.solvedDate != null && lQ.solvedDate!.isNotEmpty)
+            ? lQ.solvedDate
+            : cSolvedAt;
+        final String finalDiff = (lQ.difficulty.isNotEmpty && lQ.difficulty != 'medium')
+            ? lQ.difficulty
+            : cDiff;
+
+        mergedQuestions[qId] = lQ.copyWith(
+          solved: isSolved,
+          difficulty: finalDiff,
+          unnecessary: lQ.unnecessary || cUnnecessary,
+          solvedDate: finalDate,
+        );
+      }
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final trackerData = {
+      'questions': mergedQuestions.map((k, v) => MapEntry(k, v.toJson())),
+      'lastUpdated': DateTime.now().toIso8601String(),
+    };
+    await prefs.setString('jam_pyq_user_tracker_v1', json.encode(trackerData));
+    await tracker.reload();
+  }
+
+  /// Two-way sync: Pull latest cloud updates, merge, and push merged progress back
   Future<bool> syncNow() async {
     if (_syncCode == null || _syncCode!.isEmpty) {
       _syncCode = generateRandomCode();
@@ -74,16 +127,28 @@ class CloudSyncService extends ChangeNotifier {
     }
 
     _isSyncing = true;
-    _statusMessage = 'Syncing to cloud...';
+    _statusMessage = 'Syncing with cloud...';
     notifyListeners();
 
     try {
       final tracker = TrackerService.instance;
-      final payload = _buildPayload(tracker);
-
       final codeKey = getCleanCodeKey(_syncCode!);
       final endpoint = Uri.parse('$_defaultApiUrl/$codeKey');
 
+      // 1. PULL latest questions from cloud and merge
+      try {
+        final getResp = await http.get(endpoint, headers: {'Accept': 'application/json'});
+        if (getResp.statusCode == 200) {
+          final Map<String, dynamic> cloudData = json.decode(getResp.body);
+          final cloudQuestions = cloudData['questions'] as Map<String, dynamic>? ?? {};
+          await _mergeAndApplyCloudData(cloudQuestions, tracker);
+        }
+      } catch (getErr) {
+        debugPrint('[Cloud Sync] Pull step warning: $getErr');
+      }
+
+      // 2. PUSH merged dataset back to cloud
+      final payload = _buildPayload(tracker);
       final resp = await http.post(
         endpoint,
         headers: {
@@ -157,39 +222,8 @@ class CloudSyncService extends ChangeNotifier {
 
       // Smart Merge: combine cloud questions with local questions
       final tracker = TrackerService.instance;
-      final localProgress = tracker.progressMap;
-      final mergedQuestions = <String, QuestionProgress>{...localProgress};
+      await _mergeAndApplyCloudData(cloudQuestions, tracker);
 
-      for (final entry in cloudQuestions.entries) {
-        final qId = entry.key;
-        final cQ = entry.value as Map<String, dynamic>;
-
-        final lQ = mergedQuestions[qId];
-        final bool cSolved = cQ['solved'] == true;
-        final String cDiff = cQ['difficulty']?.toString() ?? 'medium';
-        final bool cUnnecessary = cQ['unnecessary'] == true;
-        final String? cSolvedAt = cQ['solvedAt']?.toString() ?? cQ['solvedDate']?.toString();
-
-        if (lQ == null) {
-          mergedQuestions[qId] = QuestionProgress(
-            solved: cSolved,
-            difficulty: cDiff,
-            unnecessary: cUnnecessary,
-            solvedDate: cSolvedAt,
-          );
-        } else {
-          // If either is solved, it stays solved!
-          final bool isSolved = lQ.solved || cSolved;
-          mergedQuestions[qId] = lQ.copyWith(
-            solved: isSolved,
-            difficulty: lQ.difficulty.isNotEmpty ? lQ.difficulty : cDiff,
-            unnecessary: lQ.unnecessary || cUnnecessary,
-            solvedDate: lQ.solvedDate ?? cSolvedAt,
-          );
-        }
-      }
-
-      // Update tracker and save
       _syncCode = normCode;
       _lastSyncTime = DateTime.now().toIso8601String();
 
@@ -197,16 +231,16 @@ class CloudSyncService extends ChangeNotifier {
       await prefs.setString(_storageSyncCode, _syncCode!);
       await prefs.setString(_storageLastSync, _lastSyncTime!);
 
-      // Save merged questions to tracker SharedPreferences
-      final trackerData = {
-        'questions': mergedQuestions.map((k, v) => MapEntry(k, v.toJson())),
-        'lastUpdated': _lastSyncTime,
-      };
-      await prefs.setString('jam_pyq_user_tracker_v1', json.encode(trackerData));
-      await tracker.reload(); // reload tracker in-memory map & notify listeners
-
       // Also push merged data back up so cloud has both
-      await syncNow();
+      final payload = _buildPayload(tracker);
+      await http.post(
+        endpoint,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: json.encode(payload),
+      );
 
       _statusMessage = 'Device linked & synced successfully!';
       _isSyncing = false;
@@ -266,4 +300,3 @@ class CloudSyncService extends ChangeNotifier {
     };
   }
 }
-

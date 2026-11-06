@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,11 +90,13 @@ class TrackerService extends ChangeNotifier {
   Future<void> toggleSolved(String questionId, List<PyqItem> allQuestions) async {
     final current = getProgress(questionId);
     final newSolved = !current.solved;
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final now = DateTime.now();
+    final today = DateFormat('yyyy-MM-dd').format(now);
+    final nowIso = now.toIso8601String();
 
     _progressMap[questionId] = current.copyWith(
       solved: newSolved,
-      solvedDate: newSolved ? today : null,
+      solvedDate: newSolved ? nowIso : null,
     );
 
     // Update daily logs
@@ -168,36 +171,72 @@ class TrackerService extends ChangeNotifier {
   int get solvedCount => _progressMap.values.where((p) => p.solved).length;
   int get unnecessaryCount => _progressMap.values.where((p) => p.unnecessary).length;
 
+  String? _parseDateKey(String? dateStr) {
+    if (dateStr == null || dateStr.trim().isEmpty) return null;
+    try {
+      final dt = DateTime.parse(dateStr).toLocal();
+      return DateFormat('yyyy-MM-dd').format(dt);
+    } catch (_) {
+      if (dateStr.length >= 10 && RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(dateStr)) {
+        return dateStr.substring(0, 10);
+      }
+      return null;
+    }
+  }
+
+  Map<String, int> get dailyLogs {
+    final map = <String, int>{};
+    // 1. Group all solved questions by their local date (matching website's stats.js)
+    for (final p in _progressMap.values) {
+      if (p.solved && p.solvedDate != null) {
+        final key = _parseDateKey(p.solvedDate);
+        if (key != null) {
+          map[key] = (map[key] ?? 0) + 1;
+        }
+      }
+    }
+    // 2. Incorporate any explicit daily logs recorded locally
+    for (final e in _dailyLogs.entries) {
+      map[e.key] = max(map[e.key] ?? 0, e.value);
+    }
+    return map;
+  }
+
   int get solvedTodayCount {
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    return _dailyLogs[today] ?? 0;
+    return dailyLogs[today] ?? 0;
   }
 
   int get solvedThisWeekCount {
     final now = DateTime.now();
+    final logs = dailyLogs;
     int sum = 0;
     for (int i = 0; i < 7; i++) {
       final day = now.subtract(Duration(days: i));
       final key = DateFormat('yyyy-MM-dd').format(day);
-      sum += (_dailyLogs[key] ?? 0);
+      sum += (logs[key] ?? 0);
     }
     return sum;
   }
 
   int get activeStreakDays {
     final now = DateTime.now();
-    int streak = 0;
-    DateTime checkDay = now;
-
-    // If today is 0, check if yesterday had solving to continue streak
+    final logs = dailyLogs;
     final todayKey = DateFormat('yyyy-MM-dd').format(now);
-    if ((_dailyLogs[todayKey] ?? 0) == 0) {
-      checkDay = now.subtract(const Duration(days: 1));
-    }
+    final yesterdayKey = DateFormat('yyyy-MM-dd').format(now.subtract(const Duration(days: 1)));
+
+    // Like stats.js: streak is active if there is activity today or yesterday
+    final hasToday = (logs[todayKey] ?? 0) > 0;
+    final hasYesterday = (logs[yesterdayKey] ?? 0) > 0;
+
+    if (!hasToday && !hasYesterday) return 0;
+
+    int streak = 0;
+    DateTime checkDay = hasToday ? now : now.subtract(const Duration(days: 1));
 
     while (true) {
       final key = DateFormat('yyyy-MM-dd').format(checkDay);
-      if ((_dailyLogs[key] ?? 0) > 0) {
+      if ((logs[key] ?? 0) > 0) {
         streak++;
         checkDay = checkDay.subtract(const Duration(days: 1));
       } else {
@@ -206,7 +245,5 @@ class TrackerService extends ChangeNotifier {
     }
     return streak;
   }
-
-  Map<String, int> get dailyLogs => _dailyLogs;
 }
 

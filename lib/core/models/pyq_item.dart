@@ -97,7 +97,7 @@ class QuestionProgress {
       difficulty: json['difficulty']?.toString() ?? 'medium',
       unnecessary: json['unnecessary'] as bool? ?? false,
       notes: json['notes']?.toString() ?? '',
-      solvedDate: json['solvedDate']?.toString(),
+      solvedDate: json['solvedDate']?.toString() ?? json['solvedAt']?.toString(),
     );
   }
 
@@ -107,6 +107,7 @@ class QuestionProgress {
     'unnecessary': unnecessary,
     'notes': notes,
     'solvedDate': solvedDate,
+    'solvedAt': solvedDate,
   };
 
   QuestionProgress copyWith({

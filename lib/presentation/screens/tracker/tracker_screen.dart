@@ -38,6 +38,9 @@ class _TrackerScreenState extends State<TrackerScreen> {
     _trackerService.addListener(_onTrackerUpdate);
     _cloudSync.addListener(_onTrackerUpdate);
     _loadQuestions();
+    if (_cloudSync.isLinked && _cloudSync.autoSyncEnabled) {
+      _cloudSync.syncNow();
+    }
   }
 
   @override
@@ -406,30 +409,42 @@ class _TrackerScreenState extends State<TrackerScreen> {
                       ),
                     ),
                   )
-                : ListView.separated(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (ctx, idx) {
-                      final q = filtered[idx];
-                      final prog = _trackerService.getProgress(q.id, defaultDiff: q.defaultDifficulty);
-
-                      return PyqQuestionCard(
-                        key: ValueKey(q.id),
-                        question: q,
-                        progress: prog,
-                        onToggleSolved: () {
-                          _trackerService.toggleSolved(q.id, _allQuestions ?? []);
-                        },
-                        onSetDifficulty: (diff) {
-                          _trackerService.setDifficulty(q.id, diff);
-                        },
-                        onLaunchCbt: () {
-                          _launchCbtForYear(q.year);
-                        },
-                      );
+                : RefreshIndicator(
+                    color: AppColors.primaryGold,
+                    backgroundColor: AppColors.surface,
+                    onRefresh: () async {
+                      HapticFeedback.lightImpact();
+                      if (_cloudSync.isLinked) {
+                        await _cloudSync.syncNow();
+                      } else {
+                        await _trackerService.reload();
+                      }
                     },
+                    child: ListView.separated(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (ctx, idx) {
+                        final q = filtered[idx];
+                        final prog = _trackerService.getProgress(q.id, defaultDiff: q.defaultDifficulty);
+
+                        return PyqQuestionCard(
+                          key: ValueKey(q.id),
+                          question: q,
+                          progress: prog,
+                          onToggleSolved: () {
+                            _trackerService.toggleSolved(q.id, _allQuestions ?? []);
+                          },
+                          onSetDifficulty: (diff) {
+                            _trackerService.setDifficulty(q.id, diff);
+                          },
+                          onLaunchCbt: () {
+                            _launchCbtForYear(q.year);
+                          },
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
