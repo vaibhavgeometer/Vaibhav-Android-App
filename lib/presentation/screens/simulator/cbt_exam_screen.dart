@@ -53,9 +53,9 @@ class _CbtExamScreenState extends State<CbtExamScreen> {
     }
     if (widget.test.questions.isNotEmpty) {
       _statuses[0] = QuestionStatus.notAnswered;
+      _loadCurrentResponseIntoInput();
     }
 
-    _loadCurrentResponseIntoInput();
     _startTimer();
   }
 
@@ -86,6 +86,7 @@ class _CbtExamScreenState extends State<CbtExamScreen> {
   }
 
   void _loadCurrentResponseIntoInput() {
+    if (widget.test.questions.isEmpty || _currentIndex < 0 || _currentIndex >= widget.test.questions.length) return;
     final currentQ = widget.test.questions[_currentIndex];
     if (currentQ.type == 'NAT') {
       final resp = _responses[_currentIndex];
@@ -94,6 +95,7 @@ class _CbtExamScreenState extends State<CbtExamScreen> {
   }
 
   void _saveCurrentInputToResponse() {
+    if (widget.test.questions.isEmpty || _currentIndex < 0 || _currentIndex >= widget.test.questions.length) return;
     final currentQ = widget.test.questions[_currentIndex];
     if (currentQ.type == 'NAT') {
       final text = _natController.text.trim();
@@ -334,6 +336,64 @@ class _CbtExamScreenState extends State<CbtExamScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.test.questions.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: Text(widget.test.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(Icons.info_outline, size: 48, color: AppColors.primaryGold),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  widget.test.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.test.pattern.isNotEmpty
+                      ? widget.test.pattern
+                      : '0 Questions Available (Not in this syllabus era)',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'This syllabus era did not contain separate examination questions for this specific subtopic.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.arrow_back, size: 16),
+                  label: const Text('Return to Mock Tests'),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final q = widget.test.questions[_currentIndex];
 
     return Scaffold(

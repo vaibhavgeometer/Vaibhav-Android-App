@@ -82,26 +82,13 @@ You can download and install the latest APK directly onto any Android device:
 * **🎯 Topic Mastery Progress Bars:** Real Analysis (286 Qs), Multivariable Calculus & Differential Equations (257 Qs), and Linear Algebra & Algebra (255 Qs).
 * **📊 22-Year Project Statistics Report:** Access the comprehensive empirical study report PDF directly inside the app.
 
-### 📚 6. Study Hub & CUET-PG Archive
+### 📚 6. Study Materials Hub & CUET-PG Archive (Exact Website Parity)
 * **⏳ IIT JAM 2027 Live Countdown:** Real-time ticking countdown timer targeting Sunday, February 14, 2027 (09:30 AM IST).
-* **🎓 CUET-PG Mathematics Papers:** Master question papers for 2024, 2025, and 2026.
-* **📜 Official Syllabus:** Verified syllabus PDF for IIT JAM Mathematics.
-* **📑 14 Formula Cheat Sheets:**
-  1. Linear Algebra Master Cheat Sheet
-  2. Vector Spaces & Linear Transformations
-  3. Sequences of Real Numbers
-  4. Series of Real Numbers
-  5. Series Convergence Tests
-  6. Continuity & Differentiability
-  7. Riemann Integration
-  8. Functions of Several Variables
-  9. Multivariable & Power Series Supplemental
-  10. Differential Equations Master Sheet
-  11. Integral Calculus Sheet
-  12. Group Theory Master Sheet
-  13. Group Theory Summary
-  14. Basic Algebra Cheat Sheet
-* **🛠️ Custom Test Generator:** Tailor your own practice test by picking specific topics, question counts (15, 30, 45, 60), and custom durations.
+* **📊 Project Statistics & Analytics (2005–2026):** Full comprehensive analytical report breakdown across 22 years, 885 questions, cognitive difficulties, and topic weightages.
+* **📜 Official IIT JAM Syllabus:** Complete verified syllabus document across Real Analysis, Calculus, ODE, Linear Algebra, and Groups.
+* **🏛️ 22-Year PYQ Archive (2005–2026):** Complete historical original question paper archive spanning all 22 examination years.
+* **🎓 CUET-PG Mathematics Master Archive:** Complete official master question papers for 2024, 2025, and 2026.
+* **🛠️ Custom Mock Test Generator:** Tailor your own practice test by picking specific topics, question counts (10, 20, 30, 45, 60), and difficulty tiers with instant CBT mode or practice drill.
 
 ---
 
@@ -111,16 +98,16 @@ You can download and install the latest APK directly onto any Android device:
 lib/
 ├── core/
 │   ├── models/           # Data models (Question, MockTest, PyqItem, TestResult)
-│   ├── services/         # DataService, TrackerService, CalculatorEngine, PdfHelper
+│   ├── services/         # DataService, TrackerService, CloudSyncService, CalculatorEngine, PdfHelper
 │   └── theme/            # Lichess-inspired dark theme, typography & palette
 ├── presentation/
 │   ├── screens/
 │   │   ├── main_shell.dart         # Bottom Navigation Shell
-│   │   ├── tests/                  # Mock Tests Catalog
-│   │   ├── tracker/                # 885 PYQ Question Bank & Tracker
+│   │   ├── tests/                  # 22-Year Papers, 27 Subtopics & Custom Test Generator
+│   │   ├── tracker/                # 885 PYQs with Screenshots by Default & Cloud Sync
 │   │   ├── simulator/              # CBT Simulator, Calculator & Results
-│   │   ├── stats/                  # Velocity & Topic Analytics
-│   │   └── study_hub/              # Cheat Sheets, CUET-PG & Countdown
+│   │   ├── stats/                  # Study Velocity, Streaks & Topic Analytics
+│   │   └── study_hub/              # Official Syllabus, Analytics, PYQ Archive & Countdown
 │   └── widgets/                    # Interactive zoomable screenshot viewer, difficulty chips
 └── main.dart
 ```

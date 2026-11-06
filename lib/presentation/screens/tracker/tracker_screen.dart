@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/models/mock_test.dart';
 import '../../../core/models/pyq_item.dart';
 import '../../../core/services/cloud_sync_service.dart';
 import '../../../core/services/data_service.dart';
@@ -7,6 +8,7 @@ import '../../../core/services/tracker_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../widgets/difficulty_chip.dart';
 import '../../widgets/question_image_viewer.dart';
+import '../simulator/cbt_exam_screen.dart';
 import 'cloud_sync_modal.dart';
 
 class TrackerScreen extends StatefulWidget {
@@ -20,12 +22,15 @@ class _TrackerScreenState extends State<TrackerScreen> {
   final TrackerService _trackerService = TrackerService.instance;
   final CloudSyncService _cloudSync = CloudSyncService.instance;
   List<PyqItem>? _allQuestions;
+  Map<String, MockTest>? _mockTests;
   bool _isLoading = true;
 
   String _searchQuery = '';
   String _statusFilter = 'ALL'; // 'ALL', 'SOLVED', 'UNSOLVED', 'OOS'
   String _topicFilter = 'ALL';
   String _difficultyFilter = 'ALL';
+
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -39,6 +44,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
   void dispose() {
     _trackerService.removeListener(_onTrackerUpdate);
     _cloudSync.removeListener(_onTrackerUpdate);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -58,130 +64,30 @@ class _TrackerScreenState extends State<TrackerScreen> {
   Future<void> _loadQuestions() async {
     await _trackerService.init();
     final questions = await DataService.instance.loadCategorizedPyqs();
+    final tests = await DataService.instance.loadMockTests();
     if (mounted) {
       setState(() {
         _allQuestions = questions;
+        _mockTests = tests;
         _isLoading = false;
       });
     }
   }
 
-  void _openQuestionDetail(PyqItem q, QuestionProgress prog) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _buildQuestionModal(q, prog),
-    );
-  }
-
-  Widget _buildQuestionModal(PyqItem q, QuestionProgress prog) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceElevated,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${q.year} — Question ${q.questionNumber}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${q.topic} • ${q.subTopic}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 12),
-
-            // Question Screenshot Viewer
-            QuestionImageViewer(
-              imagePath: q.imagePath,
-              maxHeight: 350,
-            ),
-
-            const SizedBox(height: 14),
-
-            // Official Answer Key Banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Official Answer Key:', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                  Text(
-                    q.answer,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryGold),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // Difficulty Picker
-            const Text('Change Difficulty:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: ['very_easy', 'easy', 'medium', 'hard', 'hardest'].map((diff) {
-                final isCur = prog.difficulty == diff;
-                return ChoiceChip(
-                  label: Text(DifficultyChip.getLabel(diff), style: const TextStyle(fontSize: 11)),
-                  selected: isCur,
-                  onSelected: (val) {
-                    if (val) {
-                      _trackerService.setDifficulty(q.id, diff);
-                      Navigator.pop(context);
-                    }
-                  },
-                  selectedColor: DifficultyChip.getColor(diff),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Solved Toggle Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: Icon(prog.solved ? Icons.check_circle : Icons.radio_button_unchecked, size: 18),
-                label: Text(prog.solved ? 'Mark as Unsolved' : 'Mark as Solved'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: prog.solved ? AppColors.accentRed.withValues(alpha: 0.8) : AppColors.accentGreen,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  _trackerService.toggleSolved(q.id, _allQuestions ?? []);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
+  void _launchCbtForYear(int year) {
+    final test = _mockTests?['$year'];
+    if (test != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => CbtExamScreen(test: test, isPracticeMode: true),
         ),
-      ),
-    );
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Mock test paper for JAM $year not found.')),
+      );
+    }
   }
 
   @override
@@ -227,6 +133,12 @@ class _TrackerScreenState extends State<TrackerScreen> {
     final total = questions.length;
     final pct = total == 0 ? 0 : ((solved / total) * 100).toInt();
 
+    // Unique topics
+    final topics = <String>{'ALL'};
+    for (final q in questions) {
+      if (q.topic.isNotEmpty) topics.add(q.topic);
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -261,7 +173,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
                   children: [
                     Icon(Icons.cloud_sync, size: 18, color: AppColors.accentCyan),
                     SizedBox(width: 8),
-                    Text('Cloud Sync', style: TextStyle(fontSize: 13)),
+                    Text('Cloud Sync (6-Digit PIN)', style: TextStyle(fontSize: 13)),
                   ],
                 ),
               ),
@@ -293,8 +205,8 @@ class _TrackerScreenState extends State<TrackerScreen> {
         children: [
           // Header Progress Card
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            padding: const EdgeInsets.all(14),
+            margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(14),
@@ -308,7 +220,7 @@ class _TrackerScreenState extends State<TrackerScreen> {
                     Text(
                       '$pct%',
                       style: const TextStyle(
-                        fontSize: 28,
+                        fontSize: 26,
                         fontWeight: FontWeight.w900,
                         color: AppColors.primaryGold,
                         fontFamily: 'monospace',
@@ -317,64 +229,64 @@ class _TrackerScreenState extends State<TrackerScreen> {
                     Text(
                       '$solved / $total Solved',
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: total == 0 ? 0 : (solved / total),
-                    minHeight: 8,
-                    backgroundColor: AppColors.surfaceHighlight,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryGold),
+                    value: total == 0 ? 0 : solved / total,
+                    backgroundColor: AppColors.surfaceElevated,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.primaryGold),
+                    minHeight: 6,
                   ),
                 ),
                 const SizedBox(height: 10),
+
+                // Quick Analytics Row
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildMiniBadge('🔥 Streak: ${_trackerService.activeStreakDays}d', AppColors.primaryGold),
+                    const SizedBox(width: 8),
                     _buildMiniBadge('📅 Today: +${_trackerService.solvedTodayCount}', AppColors.accentGreen),
-                    InkWell(
-                      onTap: _openCloudSyncModal,
-                      borderRadius: BorderRadius.circular(6),
-                      child: _buildMiniBadge(
-                        _cloudSync.isLinked ? '☁️ ${_cloudSync.syncCode}' : '☁️ Cloud Sync',
-                        _cloudSync.isLinked ? AppColors.accentGreen : AppColors.accentCyan,
-                      ),
-                    ),
+                    const SizedBox(width: 8),
+                    _buildMiniBadge('🚫 OOS: 87', AppColors.accentPurple),
                   ],
                 ),
               ],
             ),
           ),
 
-          // Search Box
+          // Search Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
             child: TextField(
-              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              style: const TextStyle(color: Colors.white, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Search 885 PYQs (e.g. 2013 Q17, differential equation)...',
-                hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                hintText: 'Search 885 PYQs (e.g. 2013 Q17, differential, 2026 5)...',
+                hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 12.5),
                 prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary, size: 18),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
+                        icon: const Icon(Icons.clear, size: 16, color: AppColors.textSecondary),
                         onPressed: () => setState(() => _searchQuery = ''),
                       )
                     : null,
                 filled: true,
                 fillColor: AppColors.surface,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.primaryGold),
                 ),
               ),
               onChanged: (val) {
@@ -383,32 +295,36 @@ class _TrackerScreenState extends State<TrackerScreen> {
             ),
           ),
 
-          // Filters Row
+          // Filter Row 1: Status & Topics
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
             child: Row(
               children: [
-                _buildStatusChip('ALL', 'All ($total)'),
+                _buildStatusChip('ALL', 'All Questions'),
                 const SizedBox(width: 6),
-                _buildStatusChip('SOLVED', 'Solved ($solved)'),
+                _buildStatusChip('SOLVED', '✓ Solved ($solved)'),
                 const SizedBox(width: 6),
-                _buildStatusChip('UNSOLVED', 'Unsolved (${total - solved})'),
+                _buildStatusChip('UNSOLVED', '○ Unsolved (${total - solved})'),
                 const SizedBox(width: 6),
-                _buildStatusChip('OOS', 'Out of Syllabus (87)'),
-                const SizedBox(width: 10),
-                Container(width: 1, height: 20, color: AppColors.border),
-                const SizedBox(width: 10),
-                _buildTopicChip('ALL', 'All Topics'),
-                const SizedBox(width: 6),
-                _buildTopicChip('Real Analysis', 'Real Analysis'),
-                const SizedBox(width: 6),
-                _buildTopicChip('Multivariable Calculus and Differential Equations', 'Multivariable & Diff Eq'),
-                const SizedBox(width: 6),
-                _buildTopicChip('Linear Algebra and Algebra', 'Linear Algebra & Algebra'),
-                const SizedBox(width: 10),
-                Container(width: 1, height: 20, color: AppColors.border),
-                const SizedBox(width: 10),
+                _buildStatusChip('OOS', '⚠️ Out of Syllabus'),
+                const SizedBox(width: 12),
+                Container(height: 16, width: 1, color: AppColors.border),
+                const SizedBox(width: 12),
+                ...topics.map((t) => Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: _buildTopicChip(t, t == 'ALL' ? 'All Subjects' : t),
+                    )),
+              ],
+            ),
+          ),
+
+          // Filter Row 2: Difficulty Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+            child: Row(
+              children: [
                 _buildDifficultyFilterChip('ALL', 'All Difficulties'),
                 const SizedBox(width: 6),
                 _buildDifficultyFilterChip('very_easy', 'Very Easy'),
@@ -424,19 +340,97 @@ class _TrackerScreenState extends State<TrackerScreen> {
             ),
           ),
 
-          // Question List
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(14),
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (ctx, idx) {
-                final q = filtered[idx];
-                final prog = _trackerService.getProgress(q.id, defaultDiff: q.defaultDifficulty);
-
-                return _buildQuestionTile(q, prog);
-              },
+          // Question Count & Feed Info
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Showing ${filtered.length} of $total official PYQs',
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                ),
+                if (_searchQuery.isNotEmpty || _statusFilter != 'ALL' || _difficultyFilter != 'ALL' || _topicFilter != 'ALL')
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _searchQuery = '';
+                        _statusFilter = 'ALL';
+                        _difficultyFilter = 'ALL';
+                        _topicFilter = 'ALL';
+                      });
+                    },
+                    child: const Text(
+                      'Clear Filters',
+                      style: TextStyle(fontSize: 11.5, color: AppColors.primaryGold, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+              ],
             ),
+          ),
+
+          // Question List with Images Visible by Default
+          Expanded(
+            child: filtered.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.search_off, size: 48, color: AppColors.textMuted),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'No matching questions found',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Try clearing search keywords or resetting status/topic filters.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _searchQuery = '';
+                                _statusFilter = 'ALL';
+                                _difficultyFilter = 'ALL';
+                                _topicFilter = 'ALL';
+                              });
+                            },
+                            child: const Text('Reset All Filters'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (ctx, idx) {
+                      final q = filtered[idx];
+                      final prog = _trackerService.getProgress(q.id, defaultDiff: q.defaultDifficulty);
+
+                      return PyqQuestionCard(
+                        key: ValueKey(q.id),
+                        question: q,
+                        progress: prog,
+                        onToggleSolved: () {
+                          _trackerService.toggleSolved(q.id, _allQuestions ?? []);
+                        },
+                        onSetDifficulty: (diff) {
+                          _trackerService.setDifficulty(q.id, diff);
+                        },
+                        onLaunchCbt: () {
+                          _launchCbtForYear(q.year);
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -505,60 +499,14 @@ class _TrackerScreenState extends State<TrackerScreen> {
     );
   }
 
-  Widget _buildQuestionTile(PyqItem q, QuestionProgress prog) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: prog.solved ? AppColors.accentGreen.withValues(alpha: 0.5) : AppColors.border,
-        ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        onTap: () => _openQuestionDetail(q, prog),
-        leading: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            _trackerService.toggleSolved(q.id, _allQuestions ?? []);
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            child: Icon(
-              prog.solved ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: prog.solved ? AppColors.accentGreen : AppColors.textMuted,
-              size: 24,
-            ),
-          ),
-        ),
-        title: Row(
-          children: [
-            Text(
-              '${q.year} Q${q.questionNumber}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textPrimary),
-            ),
-            const SizedBox(width: 8),
-            DifficultyChip(difficulty: prog.difficulty, isCompact: true),
-          ],
-        ),
-        subtitle: Text(
-          '${q.topic} • ${q.subTopic}',
-          style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted),
-      ),
-    );
-  }
-
   void _confirmReset() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Reset All Progress?'),
-        content: const Text('This will clear all marked solved questions, difficulty tags, and streaks. This action cannot be undone.'),
+        content: const Text(
+          'This will clear all marked solved questions, difficulty tags, and streaks. This action cannot be undone.',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
@@ -570,6 +518,393 @@ class _TrackerScreenState extends State<TrackerScreen> {
             child: const Text('Reset'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class PyqQuestionCard extends StatefulWidget {
+  final PyqItem question;
+  final QuestionProgress progress;
+  final VoidCallback onToggleSolved;
+  final ValueChanged<String> onSetDifficulty;
+  final VoidCallback onLaunchCbt;
+
+  const PyqQuestionCard({
+    super.key,
+    required this.question,
+    required this.progress,
+    required this.onToggleSolved,
+    required this.onSetDifficulty,
+    required this.onLaunchCbt,
+  });
+
+  @override
+  State<PyqQuestionCard> createState() => _PyqQuestionCardState();
+}
+
+class _PyqQuestionCardState extends State<PyqQuestionCard> {
+  bool _isKeyRevealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final q = widget.question;
+    final prog = widget.progress;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: prog.solved ? AppColors.accentGreen.withValues(alpha: 0.5) : AppColors.border,
+          width: prog.solved ? 1.5 : 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      '${q.year}_Q${q.questionNumber}',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        color: AppColors.textMuted,
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'JAM ${q.year} • Q${q.questionNumber}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppColors.textPrimary),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  _buildTypeBadge(q.type),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.accentGreen.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      '+${q.marks}M',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.accentGreen),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Tags row
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '📁 ${q.subTopic}',
+                  style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary),
+                ),
+              ),
+              DifficultyChip(difficulty: prog.difficulty, isCompact: true),
+              if (q.isOutOfSyllabus)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentRed.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: AppColors.accentRed.withValues(alpha: 0.3)),
+                  ),
+                  child: const Text(
+                    '⚠️ Out of Syllabus',
+                    style: TextStyle(fontSize: 10, color: AppColors.accentRed, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              if (prog.solved)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.accentGreen.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    '✓ Solved${prog.solvedDate != null ? ' (${prog.solvedDate})' : ''}',
+                    style: const TextStyle(fontSize: 10, color: AppColors.accentGreen, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // Question Screenshot (VISIBLE BY DEFAULT!)
+          QuestionImageViewer(
+            imagePath: q.imagePath,
+            maxHeight: 360,
+            enableFullScreen: true,
+            enableInlineZoom: false,
+          ),
+
+          const SizedBox(height: 12),
+
+          // Interactive Controls Row 1: Solved & Difficulty
+          Row(
+            children: [
+              // Solved Toggle Button
+              Expanded(
+                flex: 5,
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    widget.onToggleSolved();
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: prog.solved ? AppColors.accentGreen : AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: prog.solved ? AppColors.accentGreen : AppColors.border,
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          prog.solved ? Icons.check_circle : Icons.radio_button_unchecked,
+                          size: 15,
+                          color: prog.solved ? Colors.white : AppColors.textSecondary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          prog.solved ? '✓ Solved' : '○ Mark Solved',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: prog.solved ? Colors.white : AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // Difficulty Dropdown Selector
+              Expanded(
+                flex: 4,
+                child: PopupMenuButton<String>(
+                  tooltip: 'Set Difficulty Tag',
+                  initialValue: prog.difficulty,
+                  onSelected: (newDiff) {
+                    HapticFeedback.selectionClick();
+                    widget.onSetDifficulty(newDiff);
+                  },
+                  itemBuilder: (_) => [
+                    _diffMenuItem('very_easy', '🟢 Very Easy'),
+                    _diffMenuItem('easy', '🔵 Easy'),
+                    _diffMenuItem('medium', '🟡 Medium'),
+                    _diffMenuItem('hard', '🟠 Hard'),
+                    _diffMenuItem('hardest', '🟣 Hardest'),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          DifficultyChip.getLabel(prog.difficulty),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: DifficultyChip.getColor(prog.difficulty),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.textMuted),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Second Action Row: Show Key & Open CBT
+          Row(
+            children: [
+              // Show / Hide Key Button
+              InkWell(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() {
+                    _isKeyRevealed = !_isKeyRevealed;
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _isKeyRevealed
+                        ? AppColors.primaryGold.withValues(alpha: 0.15)
+                        : AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _isKeyRevealed
+                          ? AppColors.primaryGold.withValues(alpha: 0.5)
+                          : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _isKeyRevealed ? Icons.visibility_off_outlined : Icons.vpn_key_outlined,
+                        size: 14,
+                        color: _isKeyRevealed ? AppColors.primaryGold : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isKeyRevealed ? 'Hide Key' : 'Show Key',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.bold,
+                          color: _isKeyRevealed ? AppColors.primaryGold : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              if (_isKeyRevealed) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryGold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.primaryGold.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      'Master Key: ${q.answer}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryGold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ] else
+                const Spacer(),
+
+              // Launch CBT Button
+              InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  widget.onLaunchCbt();
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.flash_on, size: 14, color: AppColors.primaryGold),
+                      SizedBox(width: 4),
+                      Text(
+                        'Open CBT',
+                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _diffMenuItem(String val, String text) {
+    return PopupMenuItem(
+      value: val,
+      child: Text(text, style: const TextStyle(fontSize: 12.5)),
+    );
+  }
+
+  Widget _buildTypeBadge(String type) {
+    Color color;
+    switch (type.toUpperCase()) {
+      case 'MCQ':
+        color = AppColors.accentCyan;
+        break;
+      case 'MSQ':
+        color = AppColors.accentPurple;
+        break;
+      case 'NAT':
+        color = AppColors.primaryGold;
+        break;
+      default:
+        color = AppColors.textSecondary;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        type.toUpperCase(),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
       ),
     );
   }

@@ -10,6 +10,26 @@ class PyqItem {
   String get imagePath => 'assets/PYQs_Screenshots/$year/JAM_${year}_Q$questionNumber.png';
   bool get isOutOfSyllabus => topic == 'Out of Syllabus' || subTopic == 'Out of Syllabus';
 
+  String get type {
+    if (year >= 2015) {
+      if (questionNumber <= 30) return 'MCQ';
+      if (questionNumber <= 40) return 'MSQ';
+      return 'NAT';
+    }
+    return 'MCQ';
+  }
+
+  int get marks {
+    if (year >= 2015) {
+      if (questionNumber <= 10) return 1;
+      if (questionNumber <= 30) return 2;
+      if (questionNumber <= 40) return 2;
+      if (questionNumber <= 50) return 1;
+      return 2;
+    }
+    return 6;
+  }
+
   const PyqItem({
     required this.year,
     required this.questionNumber,

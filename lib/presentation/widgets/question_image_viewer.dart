@@ -5,12 +5,14 @@ class QuestionImageViewer extends StatefulWidget {
   final String imagePath;
   final double? maxHeight;
   final bool enableFullScreen;
+  final bool enableInlineZoom;
 
   const QuestionImageViewer({
     super.key,
     required this.imagePath,
     this.maxHeight,
     this.enableFullScreen = true,
+    this.enableInlineZoom = false,
   });
 
   @override
@@ -79,41 +81,58 @@ class _QuestionImageViewerState extends State<QuestionImageViewer> {
 
   @override
   Widget build(BuildContext context) {
+    Widget imageContent = Center(
+      child: Image.asset(
+        widget.imagePath,
+        fit: BoxFit.contain,
+        cacheWidth: 1080,
+        errorBuilder: (_, __, ___) => _buildErrorWidget(),
+      ),
+    );
+
+    if (widget.enableInlineZoom) {
+      imageContent = InteractiveViewer(
+        transformationController: _transformationController,
+        minScale: 1.0,
+        maxScale: 3.5,
+        child: imageContent,
+      );
+    }
+
     return GestureDetector(
       onTap: widget.enableFullScreen ? () => _openFullScreen(context) : null,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
           constraints: BoxConstraints(
-            maxHeight: widget.maxHeight ?? 420,
+            maxHeight: widget.maxHeight ?? 380,
           ),
           color: Colors.white,
           width: double.infinity,
           child: Stack(
             children: [
-              InteractiveViewer(
-                transformationController: _transformationController,
-                minScale: 1.0,
-                maxScale: 3.5,
-                child: Center(
-                  child: Image.asset(
-                    widget.imagePath,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => _buildErrorWidget(),
-                  ),
-                ),
-              ),
+              imageContent,
               if (widget.enableFullScreen)
                 Positioned(
                   right: 8,
                   top: 8,
                   child: Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
-                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.black.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.fullscreen, color: Colors.white, size: 20),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                        SizedBox(width: 4),
+                        Text(
+                          'Expand',
+                          style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],
